@@ -1,0 +1,54 @@
+
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder, RobustScaler
+from imblearn.pipeline import make_pipeline
+from imblearn.combine import SMOTETomek
+from imblearn.over_sampling import SMOTE
+from xgboost import XGBClassifier
+from sklearn.model_selection import cross_validate
+import pandas as pd
+
+# Assuming 'train_data' and 'Validation_set' are defined pandas DataFrames
+# First, determine which columns are categorical and which are numerical
+categorical_features = train_data.select_dtypes(include=['object']).columns.tolist()
+numerical_features = train_data.select_dtypes(exclude=['object']).columns.tolist()
+numerical_features.remove("Hotline_Class")  # Remove the target feature
+
+# Create the ColumnTransformer to handle categorical and numeric data
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', RobustScaler(), numerical_features),
+        ('cat', OneHotEncoder(), categorical_features)
+    ])
+
+# Create the imbalanced-learn pipeline using make_pipeline
+pipeline = make_pipeline(
+    preprocessor,
+    SMOTETomek(smote=SMOTE(sampling_strategy={0: 116463}, random_state=24)),
+    XGBClassifier()
+)
+
+# Splitting features and target
+x = train_data.drop("Hotline_Class", axis=1)
+y = train_data["Hotline_Class"]
+
+# Perform cross-validation on the training set
+scores = cross_validate(pipeline, x, y, scoring="accuracy", cv=5, return_train_score=True, return_estimator=True)
+
+# Print the training and validation results
+print("Train_accuracy:", scores["train_score"].mean())
+print("-" * 10)
+print("Validation_accuracy:", scores["test_score"].mean())
+print("-" * 20)
+
+# Use the best model from cross-validation to make predictions on the new dataset
+best_estimator_index = scores['test_score'].argmax()
+best_estimator = scores['estimator'][best_estimator_index]
+
+# Make predictions on the new dataset
+predictions_new_data = best_estimator.predict(Validation_set)  # Assuming 'Validation_set' is already formatted correctly
+
+# Print predictions
+print("Predictions on New Data:", predictions_new_data)
+print("-" * 20)
+type error: ufunc 'isnan' not supported for the input types, and the inputs could not be safely coerced to any supported types according to the casting rule ''safe''
